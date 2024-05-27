@@ -1,0 +1,10 @@
+# Ignore sensitive files
+wp-config.php
+
+# Ignore WordPress content directories
+wp-content/uploads
+wp-content/cache
+
+# Ignore OS files
+.DS_Store
+Thumbs.db
