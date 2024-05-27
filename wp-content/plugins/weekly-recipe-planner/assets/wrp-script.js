@@ -1,6 +1,5 @@
 jQuery(document).ready(function($) {
     var wrp_selectedRecipes = [];
-    var wrp_peopleNumber = ""; // Default to empty
 
     function wrp_toggleRecipeSelection(recipeId, button) {
         if (!wrp_selectedRecipes.includes(recipeId)) {
@@ -131,66 +130,78 @@ jQuery(document).ready(function($) {
     }
 
     // Event Handlers
-    $('.add-recipe-button').on('click', function() {
-        var recipeId = $(this).data('recipe-id');
-        wrp_toggleRecipeSelection(recipeId, $(this));
-    });
+    if ($('.add-recipe-button').length) {
+        $('.add-recipe-button').on('click', function() {
+            var recipeId = $(this).data('recipe-id');
+            wrp_toggleRecipeSelection(recipeId, $(this));
+        });
+    }
 
-    $('#next-step').on('click', function() {
-        wrp_redirectToSummaryPage();
-    });
+    if ($('#next-step').length) {
+        $('#next-step').on('click', function() {
+            wrp_redirectToSummaryPage();
+        });
+    }
 
-    $('.recipe-image, .recipe-title').on('click', function() {
-        var recipeId = $(this).data('recipe-id');
-        wrp_showRecipePopup(recipeId);
-    });
+    if ($('.recipe-image, .recipe-title').length) {
+        $('.recipe-image, .recipe-title').on('click', function() {
+            var recipeId = $(this).data('recipe-id');
+            wrp_showRecipePopup(recipeId);
+        });
+    }
 
-    $('#recipe-popup-close').on('click', function() {
-        wrp_closeRecipePopup();
-    });
-
-    $('#recipe-popup').on('click', function(e) {
-        if ($(e.target).is('#recipe-popup')) {
+    if ($('#recipe-popup-close').length) {
+        $('#recipe-popup-close').on('click', function() {
             wrp_closeRecipePopup();
-        }
-    });
+        });
 
-    $('#recipe-popup-content').on('mousewheel DOMMouseScroll', function(e) {
-        var scrollTop = this.scrollTop,
-            scrollHeight = this.scrollHeight,
-            height = this.clientHeight,
-            delta = (e.originalEvent.wheelDelta) ? e.originalEvent.wheelDelta : -e.originalEvent.detail,
-            up = delta > 0;
+        $('#recipe-popup').on('click', function(e) {
+            if ($(e.target).is('#recipe-popup')) {
+                wrp_closeRecipePopup();
+            }
+        });
 
-        var prevent = function() {
+        $('#recipe-popup-content').on('mousewheel DOMMouseScroll', function(e) {
+            var scrollTop = this.scrollTop,
+                scrollHeight = this.scrollHeight,
+                height = this.clientHeight,
+                delta = (e.originalEvent.wheelDelta) ? e.originalEvent.wheelDelta : -e.originalEvent.detail,
+                up = delta > 0;
+
+            var prevent = function() {
+                e.stopPropagation();
+                e.preventDefault();
+                e.returnValue = false;
+                return false;
+            };
+
+            if (!up && -delta > scrollHeight - height - scrollTop) {
+                this.scrollTop = scrollHeight;
+                return prevent();
+            } else if (up && delta > scrollTop) {
+                this.scrollTop = 0;
+                return prevent();
+            }
+        });
+
+        $('#recipe-popup-content').on('scroll touchmove mousewheel', function(e) {
             e.stopPropagation();
-            e.preventDefault();
-            e.returnValue = false;
-            return false;
-        };
+        });
+    }
 
-        if (!up && -delta > scrollHeight - height - scrollTop) {
-            this.scrollTop = scrollHeight;
-            return prevent();
-        } else if (up && delta > scrollTop) {
-            this.scrollTop = 0;
-            return prevent();
-        }
-    });
+    if ($('.filter-button').length) {
+        $('.filter-button').on('click', function() {
+            var selectedCategory = $(this).data('category');
+            wrp_filterRecipesByCategory(selectedCategory);
+        });
+    }
 
-    $('#recipe-popup-content').on('scroll touchmove mousewheel', function(e) {
-        e.stopPropagation();
-    });
-
-    $('.filter-button').on('click', function() {
-        var selectedCategory = $(this).data('category');
-        wrp_filterRecipesByCategory(selectedCategory);
-    });
-
-    $('#recipe-search').on('keyup', function() {
-        var searchTerm = $(this).val().toLowerCase();
-        wrp_searchRecipes(searchTerm);
-    });
+    if ($('#recipe-search').length) {
+        $('#recipe-search').on('keyup', function() {
+            var searchTerm = $(this).val().toLowerCase();
+            wrp_searchRecipes(searchTerm);
+        });
+    }
 
     var recipeIds = new URLSearchParams(window.location.search).get('recipe_ids');
     var people = new URLSearchParams(window.location.search).get('people');
@@ -200,44 +211,80 @@ jQuery(document).ready(function($) {
         $('#recipes-content').html('<p>No recipes selected.</p>');
     }
 
-    $('#people-number-summary').on('change', function() {
-        var selectedPeople = $(this).val();
-        if (selectedPeople) {
-            wrp_updateIngredientsSummary(selectedPeople, recipeIds);
+    if ($('#people-number-summary').length) {
+        $('#people-number-summary').on('change', function() {
+            var selectedPeople = $(this).val();
+            if (selectedPeople) {
+                wrp_updateIngredientsSummary(selectedPeople, recipeIds);
+            }
+        });
+
+        // Increase/Decrease Button Handlers
+        var input = document.getElementById('people-number-summary');
+        if (input) {
+            var decreaseButton = document.getElementById('decrease');
+            var increaseButton = document.getElementById('increase');
+
+            function updateValue(newVal) {
+                input.value = newVal;
+                var recipeIds = new URLSearchParams(window.location.search).get('recipe_ids');
+                wrp_updateIngredientsSummary(newVal, recipeIds);
+            }
+
+            if (decreaseButton) {
+                decreaseButton.addEventListener('click', function() {
+                    var currentValue = parseInt(input.value);
+                    if (currentValue > parseInt(input.min)) {
+                        updateValue(currentValue - 1);
+                    }
+                });
+            }
+
+            if (increaseButton) {
+                increaseButton.addEventListener('click', function() {
+                    var currentValue = parseInt(input.value);
+                    if (currentValue < parseInt(input.max)) {
+                        updateValue(currentValue + 1);
+                    }
+                });
+            }
+
+            input.addEventListener('change', function() {
+                var newValue = parseInt(input.value);
+                if (newValue >= parseInt(input.min) && newValue <= parseInt(input.max)) {
+                    updateValue(newValue);
+                } else {
+                    input.value = wrp_peopleNumber;
+                }
+            });
         }
-    });
-
-    // Increase/Decrease Button Handlers
-    var input = document.getElementById('people-number-summary');
-    var decreaseButton = document.getElementById('decrease');
-    var increaseButton = document.getElementById('increase');
-
-    function updateValue(newVal) {
-        input.value = newVal;
-        var recipeIds = new URLSearchParams(window.location.search).get('recipe_ids');
-        wrp_updateIngredientsSummary(newVal, recipeIds);
     }
 
-    decreaseButton.addEventListener('click', function() {
-        var currentValue = parseInt(input.value);
-        if (currentValue > parseInt(input.min)) {
-            updateValue(currentValue - 1);
-        }
-    });
+    // Function to handle scrolling of the filter buttons
+    function scrollFilter(direction) {
+        const container = document.querySelector('.filter-buttons');
+        const scrollAmount = 500; // Adjust the scroll amount (5 times faster)
 
-    increaseButton.addEventListener('click', function() {
-        var currentValue = parseInt(input.value);
-        if (currentValue < parseInt(input.max)) {
-            updateValue(currentValue + 1);
+        if (container) {
+            if (direction === 'left') {
+                container.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
+            } else {
+                container.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+            }
         }
-    });
+    }
 
-    input.addEventListener('change', function() {
-        var newValue = parseInt(input.value);
-        if (newValue >= parseInt(input.min) && newValue <= parseInt(input.max)) {
-            updateValue(newValue);
-        } else {
-            input.value = wrp_peopleNumber;
-        }
-    });
+    // Add event listeners to the arrow buttons
+    const leftArrow = document.querySelector('.filter-arrow.left');
+    const rightArrow = document.querySelector('.filter-arrow.right');
+
+    if (leftArrow && rightArrow) {
+        leftArrow.addEventListener('click', function() {
+            scrollFilter('left');
+        });
+
+        rightArrow.addEventListener('click', function() {
+            scrollFilter('right');
+        });
+    }
 });

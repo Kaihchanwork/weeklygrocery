@@ -23,9 +23,10 @@ add_action('wp_enqueue_scripts', 'wrp_enqueue_styles');
 add_shortcode('wrp_recipe_selection_page', 'wrp_recipe_selection_page');
 add_shortcode('wrp_recipe_summary_page', 'wrp_recipe_summary_page');
 
-// Display all recipes with selection options
 function wrp_recipe_selection_page() {
     wrp_enqueue_styles(); // Enqueue styles for this page
+
+    $banner_image = esc_url(get_option('wrp_banner_image')); // Get the banner image URL from the settings
 
     // Get all recipe tags (sub-categories)
     $tags = get_terms(array(
@@ -38,17 +39,25 @@ function wrp_recipe_selection_page() {
     ob_start();
     ?>
     <div class="recipe-selection-page">
-        <h2>Select Recipes for the Week</h2>
-        <div id="recipe-filter">
-            <input type="text" id="recipe-search" placeholder="Search recipes...">
-        </div>
+        <?php if ($banner_image): ?>
+            <div class="recipe-banner" style="background-image: url('<?php echo $banner_image; ?>');">
+                <div class="banner-overlay">
+                    <h2>Select Your Favorite Recipes</h2>
+                    <div id="recipe-filter">
+                        <input type="text" id="recipe-search" placeholder="Search recipes...">
+                    </div>
+                </div>
+            </div>
+        <?php endif; ?>
         <div class="filter-buttons-container">
+            <button class="filter-arrow left">&#8249;</button>
             <div class="filter-buttons">
                 <button class="filter-button" data-category="all">All</button>
                 <?php foreach ($tags as $tag) : ?>
                     <button class="filter-button" data-category="<?php echo $tag->term_id; ?>"><?php echo $tag->name; ?></button>
                 <?php endforeach; ?>
             </div>
+            <button class="filter-arrow right">&#8250;</button>
         </div>
         <form id="recipe-selection-form">
             <?php foreach ($recipes as $recipe) : ?>
@@ -73,6 +82,7 @@ function wrp_recipe_selection_page() {
     <?php
     return ob_get_clean();
 }
+
 
 // Display the selected recipes and ingredients summary
 function wrp_recipe_summary_page() {
@@ -257,6 +267,48 @@ if (!function_exists('wrp_upload_image_from_url')) {
         return $attachment_id;
     }
 }
+
+// Register settings for banner image
+function wrp_register_settings() {
+    register_setting('wrp_options_group', 'wrp_banner_image');
+}
+add_action('admin_init', 'wrp_register_settings');
+
+function wrp_settings_page() {
+    ?>
+    <div class="wrap">
+        <h1>Weekly Recipe Planner Settings</h1>
+        <form method="post" action="options.php">
+            <?php
+            settings_fields('wrp_options_group');
+            do_settings_sections('wrp_options_group');
+            ?>
+            <table class="form-table">
+                <tr valign="top">
+                    <th scope="row">Banner Image</th>
+                    <td>
+                        <input type="text" id="wrp_banner_image" name="wrp_banner_image" value="<?php echo esc_attr(get_option('wrp_banner_image')); ?>" />
+                        <input type="button" id="upload-banner-button" class="button" value="Upload Image" />
+                    </td>
+                </tr>
+            </table>
+            <?php submit_button(); ?>
+        </form>
+    </div>
+    <?php
+}
+
+function wrp_add_menu() {
+    add_options_page('Weekly Recipe Planner Settings', 'Recipe Planner', 'manage_options', 'wrp-settings', 'wrp_settings_page');
+}
+add_action('admin_menu', 'wrp_add_menu');
+
+function wrp_enqueue_media_uploader() {
+    wp_enqueue_media();
+    wp_enqueue_script('wrp-media-uploader', plugins_url('/assets/wrp-media-uploader.js', __FILE__), array('jquery'), '1.0', true);
+}
+add_action('admin_enqueue_scripts', 'wrp_enqueue_media_uploader');
+
 
 // Ensure custom fields are displayed in the post edit screen
 if (!function_exists('wrp_ensure_custom_fields_displayed')) {
