@@ -402,8 +402,8 @@ footer.wp-block-template-part {
 }
 
 #recipe-summary .recipe-thumbnail {
-    width: 60px;
-    height: 60px;
+    width: 100px;
+    height: 100px;
     object-fit: cover;
     margin-right: 20px;
     border-radius: 5px;

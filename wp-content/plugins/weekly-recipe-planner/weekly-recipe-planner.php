@@ -112,10 +112,12 @@ function wrp_recipe_summary_page() {
         </div>
     </div>
     <div id="recipe-popup" style="display: none;">
-        <div id="recipe-popup-content">
-            <span id="recipe-popup-close">&times;</span>
-            <div id="recipe-popup-body"></div>
-        </div>
+        <div id="recipe-popup-wrapper">
+			<div id="recipe-popup-content">
+				<span id="recipe-popup-close">&times;</span>
+				<div id="recipe-popup-body"></div>
+			</div>
+		</div>
     </div>
     <?php
     return ob_get_clean();

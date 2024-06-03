@@ -20,36 +20,53 @@ function recipe_importer_page() {
     <div class="wrap">
         <h1>Recipe Importer</h1>
         <form method="post" enctype="multipart/form-data">
-            <input type="file" name="recipe_json" accept=".json">
+            <?php wp_nonce_field('recipe_importer_nonce_action', 'recipe_importer_nonce'); ?>
+            <input type="file" name="recipe_json" accept=".json" required>
             <input type="submit" name="submit" value="Upload JSON" class="button button-primary">
         </form>
     </div>
     <?php
 
     // Handle form submission
-    if (isset($_POST['submit']) && !empty($_FILES['recipe_json']['tmp_name'])) {
-        $file = $_FILES['recipe_json']['tmp_name'];
-        $json_data = file_get_contents($file);
-        $recipes = json_decode($json_data, true);
-        process_recipes($recipes);
+    if (isset($_POST['submit']) && check_admin_referer('recipe_importer_nonce_action', 'recipe_importer_nonce')) {
+        if (!empty($_FILES['recipe_json']['tmp_name'])) {
+            $file = $_FILES['recipe_json']['tmp_name'];
+            $json_data = file_get_contents($file);
+
+            if ($json_data === false) {
+                echo '<div class="error"><p>Failed to read the file.</p></div>';
+                return;
+            }
+
+            $recipes = json_decode($json_data, true);
+
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                echo '<div class="error"><p>Invalid JSON file.</p></div>';
+                return;
+            }
+
+            process_recipes($recipes);
+        } else {
+            echo '<div class="error"><p>Please upload a JSON file.</p></div>';
+        }
     }
 }
 
 // Process the recipes
 function process_recipes($recipes) {
     // Ensure the main "Recipes" category exists
-    $recipes_category_id = get_term_by('name', 'Recipes', 'category');
-    if (!$recipes_category_id) {
+    $recipes_category = get_term_by('name', 'Recipes', 'category');
+    if (!$recipes_category) {
         $recipes_category_id = wp_create_category('Recipes');
     } else {
-        $recipes_category_id = $recipes_category_id->term_id;
+        $recipes_category_id = $recipes_category->term_id;
     }
 
     foreach ($recipes as $recipe) {
         // Create subcategory for the recipe tag
-        $tag_category = get_term_by('name', $recipe['tag'], 'category');
+        $tag_category = get_term_by('name', sanitize_text_field($recipe['tag']), 'category');
         if (!$tag_category) {
-            $tag_category_id = wp_create_category($recipe['tag'], $recipes_category_id);
+            $tag_category_id = wp_create_category(sanitize_text_field($recipe['tag']), $recipes_category_id);
         } else {
             $tag_category_id = $tag_category->term_id;
         }
@@ -63,6 +80,11 @@ function process_recipes($recipes) {
         );
         $recipe_post_id = wp_insert_post($recipe_post);
 
+        if (is_wp_error($recipe_post_id)) {
+            echo '<div class="error"><p>Failed to create recipe post.</p></div>';
+            continue;
+        }
+
         // Set the featured image
         $image_id = upload_image_from_url($recipe['hero_image_url']);
         if ($image_id) {
@@ -72,17 +94,17 @@ function process_recipes($recipes) {
         // Add custom fields for ingredients
         foreach ($recipe['ingredients'] as $i => $ingredient) {
             // Assuming unit and quantity are in the same field separated by a space
-            list($quantity, $unit) = explode(' ', $ingredient['unit'], 2);
+            list($quantity, $unit) = explode(' ', sanitize_text_field($ingredient['unit']), 2);
             $quantity = floatval($quantity) / 2; // Adjust the quantity for 1 person
-            add_post_meta($recipe_post_id, "ingredient_{$i}_name", $ingredient['name']);
+            add_post_meta($recipe_post_id, "ingredient_{$i}_name", sanitize_text_field($ingredient['name']));
             add_post_meta($recipe_post_id, "ingredient_{$i}_quantity", $quantity);
-            add_post_meta($recipe_post_id, "ingredient_{$i}_unit", $unit);
+            add_post_meta($recipe_post_id, "ingredient_{$i}_unit", sanitize_text_field($unit));
         }
 
         // Add custom fields for each instruction step
         foreach ($recipe['instructions'] as $i => $instruction) {
-            add_post_meta($recipe_post_id, "instruction_{$i}_text", $instruction['text']);
-            add_post_meta($recipe_post_id, "instruction_{$i}_image", $instruction['image_url']);
+            add_post_meta($recipe_post_id, "instruction_{$i}_text", sanitize_text_field($instruction['text']));
+            add_post_meta($recipe_post_id, "instruction_{$i}_image", esc_url_raw($instruction['image_url']));
         }
     }
 
