@@ -14,45 +14,57 @@ function recipe_importer_menu() {
     add_menu_page('Recipe Importer', 'Recipe Importer', 'manage_options', 'recipe-importer', 'recipe_importer_page');
 }
 
+// Enqueue scripts
+add_action('admin_enqueue_scripts', 'recipe_importer_scripts');
+function recipe_importer_scripts($hook) {
+    if ($hook != 'toplevel_page_recipe-importer') {
+        return;
+    }
+    wp_enqueue_script('recipe-importer-ajax', plugin_dir_url(__FILE__) . 'recipe-importer.js', array('jquery'), null, true);
+    wp_localize_script('recipe-importer-ajax', 'RecipeImporterAjax', array('ajax_url' => admin_url('admin-ajax.php')));
+}
+
 // Display the admin page
 function recipe_importer_page() {
     ?>
     <div class="wrap">
         <h1>Recipe Importer</h1>
-        <form method="post" enctype="multipart/form-data">
+        <form id="recipe-importer-form" method="post" enctype="multipart/form-data">
             <?php wp_nonce_field('recipe_importer_nonce_action', 'recipe_importer_nonce'); ?>
             <input type="file" name="recipe_json" accept=".json" required>
             <input type="submit" name="submit" value="Upload JSON" class="button button-primary">
         </form>
+        <div id="recipe-importer-message"></div>
     </div>
     <?php
+}
 
-    // Handle form submission
-    if (isset($_POST['submit']) && check_admin_referer('recipe_importer_nonce_action', 'recipe_importer_nonce')) {
-        if (!empty($_FILES['recipe_json']['tmp_name'])) {
-            $file = $_FILES['recipe_json']['tmp_name'];
-            $json_data = file_get_contents($file);
+// Handle the AJAX request
+add_action('wp_ajax_process_recipes', 'recipe_importer_ajax_handler');
+function recipe_importer_ajax_handler() {
+    check_ajax_referer('recipe_importer_nonce_action', 'recipe_importer_nonce');
 
-            if ($json_data === false) {
-                echo '<div class="error"><p>Failed to read the file.</p></div>';
-                return;
-            }
+    if (isset($_FILES['recipe_json']['tmp_name'])) {
+        $file = $_FILES['recipe_json']['tmp_name'];
+        $json_data = file_get_contents($file);
 
-            $recipes = json_decode($json_data, true);
-
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                echo '<div class="error"><p>Invalid JSON file.</p></div>';
-                return;
-            }
-
-            process_recipes($recipes);
-        } else {
-            echo '<div class="error"><p>Please upload a JSON file.</p></div>';
+        if ($json_data === false) {
+            wp_send_json_error('Failed to read the file.');
         }
+
+        $recipes = json_decode($json_data, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            wp_send_json_error('Invalid JSON file.');
+        }
+
+        process_recipes($recipes);
+        wp_send_json_success('Recipes imported successfully.');
+    } else {
+        wp_send_json_error('Please upload a JSON file.');
     }
 }
 
-// Process the recipes
 function process_recipes($recipes) {
     // Ensure the main "Recipes" category exists
     $recipes_category = get_term_by('name', 'Recipes', 'category');
@@ -71,17 +83,39 @@ function process_recipes($recipes) {
             $tag_category_id = $tag_category->term_id;
         }
 
-        // Create the recipe post
-        $recipe_post = array(
-            'post_title'    => wp_strip_all_tags($recipe['title']),
-            'post_content'  => '', // Leaving content empty
-            'post_status'   => 'publish',
-            'post_category' => array($recipes_category_id, $tag_category_id)
+        // Check if a post with the same title exists using WP_Query
+        $query_args = array(
+            'title' => wp_strip_all_tags($recipe['title']),
+            'post_type' => 'post',
+            'post_status' => 'any',
+            'posts_per_page' => 1
         );
-        $recipe_post_id = wp_insert_post($recipe_post);
+        $query = new WP_Query($query_args);
+
+        if ($query->have_posts()) {
+            $query->the_post();
+            $recipe_post_id = get_the_ID();
+            // Update the existing post
+            $recipe_post = array(
+                'ID'            => $recipe_post_id,
+                'post_title'    => wp_strip_all_tags($recipe['title']),
+                'post_category' => array($recipes_category_id, $tag_category_id)
+            );
+            wp_update_post($recipe_post);
+        } else {
+            // Create a new post
+            $recipe_post = array(
+                'post_title'    => wp_strip_all_tags($recipe['title']),
+                'post_content'  => '', // Leaving content empty
+                'post_status'   => 'publish',
+                'post_category' => array($recipes_category_id, $tag_category_id)
+            );
+            $recipe_post_id = wp_insert_post($recipe_post);
+        }
+
+        wp_reset_postdata();
 
         if (is_wp_error($recipe_post_id)) {
-            echo '<div class="error"><p>Failed to create recipe post.</p></div>';
             continue;
         }
 
@@ -91,24 +125,28 @@ function process_recipes($recipes) {
             set_post_thumbnail($recipe_post_id, $image_id);
         }
 
-        // Add custom fields for ingredients
+        // Add or update custom fields for ingredients
         foreach ($recipe['ingredients'] as $i => $ingredient) {
             // Assuming unit and quantity are in the same field separated by a space
             list($quantity, $unit) = explode(' ', sanitize_text_field($ingredient['unit']), 2);
             $quantity = floatval($quantity) / 2; // Adjust the quantity for 1 person
-            add_post_meta($recipe_post_id, "ingredient_{$i}_name", sanitize_text_field($ingredient['name']));
-            add_post_meta($recipe_post_id, "ingredient_{$i}_quantity", $quantity);
-            add_post_meta($recipe_post_id, "ingredient_{$i}_unit", sanitize_text_field($unit));
+            update_post_meta($recipe_post_id, "ingredient_{$i}_name", sanitize_text_field($ingredient['name']));
+            update_post_meta($recipe_post_id, "ingredient_{$i}_quantity", $quantity);
+            update_post_meta($recipe_post_id, "ingredient_{$i}_unit", sanitize_text_field($unit));
         }
 
-        // Add custom fields for each instruction step
+        // Add or update custom fields for each instruction step
         foreach ($recipe['instructions'] as $i => $instruction) {
-            add_post_meta($recipe_post_id, "instruction_{$i}_text", sanitize_text_field($instruction['text']));
-            add_post_meta($recipe_post_id, "instruction_{$i}_image", esc_url_raw($instruction['image_url']));
+            $instruction_image_id = upload_image_from_url($instruction['image_url']);
+            if ($instruction_image_id) {
+                $instruction_image_url = wp_get_attachment_url($instruction_image_id);
+                update_post_meta($recipe_post_id, "instruction_{$i}_image", $instruction_image_url);
+            } else {
+                update_post_meta($recipe_post_id, "instruction_{$i}_image", esc_url_raw($instruction['image_url']));
+            }
+            update_post_meta($recipe_post_id, "instruction_{$i}_text", sanitize_text_field($instruction['text']));
         }
     }
-
-    echo '<div class="updated"><p>Recipes imported successfully.</p></div>';
 }
 
 // Function to upload an image from a URL and return the attachment ID
