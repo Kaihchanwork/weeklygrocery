@@ -7,7 +7,7 @@ jQuery(document).ready(function($) {
             button.text('Added');
         } else {
             wrp_selectedRecipes = wrp_selectedRecipes.filter(id => id !== recipeId);
-            button.text('+');
+            button.text('Add to List');
         }
     }
 
@@ -26,15 +26,15 @@ jQuery(document).ready(function($) {
             recipe_id: recipeId
         }, function(response) {
             if (response.success) {
-                var popupContent = '<h3>' + response.data.title + '</h3>';
+                var popupContent = '<h2>' + response.data.title + '</h2>';
                 if (response.data.hero_image) {
                     popupContent += '<img src="' + response.data.hero_image + '" alt="' + response.data.title + '" class="hero-image">';
                 }
-                popupContent += '<h4>Ingredients</h4><ul>';
+                popupContent += '<h3>Ingredients</h3><ul>';
                 $.each(response.data.ingredients, function(index, ingredient) {
                     popupContent += '<li>' + ingredient.name + ' ' + ingredient.quantity + ' ' + ingredient.unit + '</li>';
                 });
-                popupContent += '</ul><h4>Instructions</h4>';
+                popupContent += '</ul><h3 class="recipe-popup-content-instructions-title">Instructions</h3>';
                 $.each(response.data.instructions, function(index, instruction) {
                     popupContent += '<div class="instruction-step">';
                     if (instruction.image) {

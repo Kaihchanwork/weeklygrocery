@@ -49,6 +49,9 @@ function wrp_recipe_selection_page() {
                 </div>
             </div>
         <?php endif; ?>
+		<div class="recipe-selection-header">
+		<h2>Select Your weekly Recipes</h2>
+		</div>
         <div class="filter-buttons-container">
             <button class="filter-arrow left">&#8249;</button>
             <div class="filter-buttons">
@@ -64,8 +67,8 @@ function wrp_recipe_selection_page() {
                 <div class="recipe-item" data-category="<?php echo implode(' ', wp_get_post_categories($recipe->ID, array('fields' => 'ids'))); ?>" data-title="<?php echo strtolower(get_the_title($recipe)); ?>">
                     <?php $featured_image = get_the_post_thumbnail_url($recipe->ID, 'medium'); ?>
                     <img src="<?php echo esc_url($featured_image); ?>" alt="<?php echo esc_attr(get_the_title($recipe)); ?>" class="recipe-image" data-recipe-id="<?php echo $recipe->ID; ?>">
-                    <h3 class="recipe-title" data-recipe-id="<?php echo $recipe->ID; ?>"><?php echo get_the_title($recipe); ?></h3>
-                    <button type="button" class="add-recipe-button" data-recipe-id="<?php echo $recipe->ID; ?>">+</button>
+                    <h4 class="recipe-title" data-recipe-id="<?php echo $recipe->ID; ?>"><?php echo get_the_title($recipe); ?></h3>
+                    <button type="button" class="add-recipe-button" data-recipe-id="<?php echo $recipe->ID; ?>">Add to List</button>
                 </div>
             <?php endforeach; ?>
         </form>
@@ -74,10 +77,12 @@ function wrp_recipe_selection_page() {
         <button type="button" id="next-step" class="next-button">Next</button>
     </div>
     <div id="recipe-popup" style="display: none;">
-        <div id="recipe-popup-content">
-            <span id="recipe-popup-close">&times;</span>
-            <div id="recipe-popup-body"></div>
-        </div>
+		<div id="recipe-popup-wrapper">
+			<div id="recipe-popup-content">
+				<span id="recipe-popup-close">&times;</span>
+				<div id="recipe-popup-body"></div>
+			</div>
+		</div>
     </div>
     <?php
     return ob_get_clean();

@@ -23,11 +23,8 @@ body {
 }
 
 .banner-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
     width: 100%;
-    height: 100%;
+    height: 700px;
     background: rgba(0, 0, 0, 0.5); /* Dark overlay for readability */
     display: flex;
     flex-direction: column;
@@ -80,7 +77,6 @@ body {
     align-items: center;
     position: relative;
     padding: 10px 0;
-    background-color: #ffffff;
     border-bottom: 1px solid #ddd;
     overflow: hidden;
     max-width: 1200px;
@@ -94,29 +90,29 @@ body {
     scroll-behavior: smooth;
     -webkit-overflow-scrolling: touch;
     flex: 1;
-    padding: 0 20px; /* Adjust padding to fit arrows */
-    margin: 0 40px; /* Ensure there's space for the arrows */
+    margin: 0 60px; /* Ensure there's space for the arrows */
 }
 
 .filter-button {
     background-color: #fff;
-    border: 1px solid #0073aa;
-    border-radius: 20px;
+    border: 1px solid #726c55;
+    border-radius: 10px;
     padding: 10px 20px;
     cursor: pointer;
     font-size: 16px;
-    color: #0073aa;
+	font-weight:bold;
+    color: #726c55;
     white-space: nowrap;
     transition: background-color 0.3s, color 0.3s;
 }
 
 .filter-button:hover {
-    background-color: #0073aa;
+    background-color: #726c55;
     color: #fff;
 }
 
 .filter-button.active {
-    background-color: #0073aa;
+    background-color: #726c55;
     color: #fff;
 }
 
@@ -174,12 +170,13 @@ body {
 
 .recipe-item {
     margin: 0;
-    border: 1px solid #ccc;
-    padding: 10px;
+    /*border: 1px solid #ccc;*/
+    padding: 10px 10px 40px 10px;
     text-align: center;
     border-radius: 10px;
     overflow: hidden;
     transition: transform 0.3s;
+	position:relative;
 }
 
 .recipe-item img {
@@ -196,15 +193,22 @@ body {
     font-size: 18px;
     margin: 10px 0;
     font-weight: bold;
+	color:#4d4938;
 }
 
 .add-recipe-button {
-    background-color: #b0e0e6;
+    background-color: #726c55;
     border: none;
+	width:100%;
     border-radius: 15px;
     padding: 10px 20px;
     cursor: pointer;
     transition: background-color 0.3s;
+	color:#ffffff;
+	font-weight:bold;
+	position:absolute;
+	bottom:0;
+	left:0;
 }
 
 .add-recipe-button:hover {
@@ -226,25 +230,48 @@ body {
     z-index: 1000;
 }
 
-#recipe-popup-content {
-    background: #fff;
-    padding: 20px;
+
+
+#recipe-popup-wrapper{
+	background: #fff;
+    padding: 50px;
     border-radius: 10px;
     position: relative;
     max-width: 50%; /* Adjust the max-width as needed */
     max-height: 70%; /* Adjust the max-height as needed */
-    overflow-y: auto; /* Ensure content inside the popup can scroll */
+    overflow: hidden; /* Ensure content inside the popup can scroll */
+	
+}
+#recipe-popup-content {
+    background: #fff;
+    /*padding: 50px;*/
+    position: relative;
+	height:700px;
+    overflow-y: scroll; /* Ensure content inside the popup can scroll */
+}
+
+
+@media (max-width: 1024px) {
+	#recipe-popup {
+		padding-top: 50px;
+	}
+	#recipe-popup-wrapper{
+		padding: 30px;
+		max-width: 70%;
+		max-height:75%;
+	}
+	
 }
 
 #recipe-popup-close {
     position: fixed;
-    top: 180px; /* Adjust this value to match the padding-top of #recipe-popup minus a bit for overlap */
-    right: calc(15% - 20px); /* Adjust this value to ensure it aligns with the right edge of the popup content and overlaps */
+    top: 200px; /* Adjust this value to match the padding-top of #recipe-popup minus a bit for overlap */
+    right: calc(24% - 20px); /* Adjust this value to ensure it aligns with the right edge of the popup content and overlaps */
     font-size: 40px; /* Increase the font size for a bigger button */
     cursor: pointer;
     z-index: 1001; /* Ensure the close button is always on top */
     color: #333;
-    background: rgba(255, 255, 255, 0.8);
+    background: rgba(255, 255, 255, 1);
     padding: 10px 15px; /* Increase the padding for a bigger button */
     border-radius: 50%; /* Make the button round for a cartoon-like feel */
     box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2); /* Add a shadow for a more prominent look */
@@ -253,11 +280,9 @@ body {
 }
 
 @media (max-width: 1024px) {
-    #recipe-popup-content {
-        max-width: 85%;
-    }
     #recipe-popup-close {
-        right: calc(7.5% - 20px); /* Adjust the right value to ensure the close button aligns properly in responsive view */
+        top:50px;
+		right: calc(12.5% - 20px); /* Adjust the right value to ensure the close button aligns properly in responsive view */
     }
 }
 
@@ -303,7 +328,7 @@ footer.wp-block-template-part {
 
 .instruction-step img {
     flex: 0 0 150px; /* Adjust this to control the image size */
-    width: 150px;
+    width: 500px;
     height: auto;
     margin-right: 20px;
 }
@@ -414,6 +439,35 @@ footer.wp-block-template-part {
     border-radius: 10px;
     object-fit: cover;
 }
+@media (min-width: 1024px) {
+	#recipe-popup-content .hero-image {
+		width:50%;
+		float:right
+	}
+}
+#recipe-popup-content h2{
+	padding-bottom:30px;
+	
+}
+#recipe-popup-content h3{
+	padding-bottom:20px;
+	
+}
+#recipe-popup-content h3.recipe-popup-content-instructions-title{
+	clear:both;
+	text-align:center;
+	padding:20px 0;
+}
+
+@media (min-width: 1024px) {
+	#recipe-popup-body li{
+		font-size:22px;
+		
+	}
+	.step-content p{
+		font-size:22px;
+	}
+}
 
 .number-input {
     display: flex;
@@ -448,4 +502,15 @@ footer.wp-block-template-part {
     width: 40px;
     height: 40px;
     font-size: 1.2em;
+}
+
+
+
+.recipe-selection-header{
+	padding: 30px 0;
+	
+}
+.recipe-selection-header h2{
+	text-align:center;
+	
 }
