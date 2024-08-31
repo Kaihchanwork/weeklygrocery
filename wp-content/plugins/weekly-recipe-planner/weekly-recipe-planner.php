@@ -9,9 +9,11 @@ Author: Your Name
 // Enqueue necessary scripts and styles
 function wrp_enqueue_scripts() {
     wp_enqueue_script('jquery');
-    wp_enqueue_script('wrp-script', plugins_url('/assets/wrp-script.js', __FILE__), array('jquery'), '1.0', true);
-    wp_localize_script('wrp-script', 'wrp_ajax', array('ajax_url' => admin_url('admin-ajax.php')));
+    wp_enqueue_script('wrp-script', plugins_url('/assets/wrp-script.js', __FILE__), array('jquery', 'js-cookie'), '1.0', true);
+    wp_localize_script('wrp-script', 'wrp_ajax', array('ajax_url' => admin_url('admin-ajax.php'), 'nonce' => wp_create_nonce('wrp_nonce')));
+    wp_enqueue_script('js-cookie', 'https://cdn.jsdelivr.net/npm/js-cookie@2/src/js.cookie.min.js', array(), null, true);
 }
+
 add_action('wp_enqueue_scripts', 'wrp_enqueue_scripts');
 
 function wrp_enqueue_styles() {
@@ -39,85 +41,102 @@ function wrp_recipe_selection_page() {
     ob_start();
     ?>
     <div class="recipe-selection-page">
-        <?php if ($banner_image): ?>
-            <div class="recipe-banner" style="background-image: url('<?php echo $banner_image; ?>');">
-                <div class="banner-overlay">
-                    <h2>Select Your Favorite Recipes</h2>
-                    <div id="recipe-filter">
-                        <input type="text" id="recipe-search" placeholder="Search recipes...">
+        <div class="search-history-container">
+            <div class="search-history-toggle">Search History</div>
+            <div class="search-history-content">
+                <ul id="search-history-list"></ul>
+            </div>
+        </div>
+        <div class="recipe-selection-content">
+            <?php if ($banner_image): ?>
+                <div class="recipe-banner" style="background-image: url('<?php echo $banner_image; ?>');">
+                    <div class="banner-overlay">
+                        <h2>Select Your Favorite Recipes</h2>
+                        <div id="recipe-filter">
+                            <input type="text" id="recipe-search" placeholder="Search recipes...">
+                        </div>
                     </div>
                 </div>
+            <?php endif; ?>
+            <div class="recipe-selection-header">
+                <h2>Select Your Weekly Recipes</h2>
             </div>
-        <?php endif; ?>
-		<div class="recipe-selection-header">
-		<h2>Select Your weekly Recipes</h2>
-		</div>
-        <div class="filter-buttons-container">
-            <button class="filter-arrow left">&#8249;</button>
-            <div class="filter-buttons">
-                <button class="filter-button" data-category="all">All</button>
-                <?php foreach ($tags as $tag) : ?>
-                    <button class="filter-button" data-category="<?php echo $tag->term_id; ?>"><?php echo $tag->name; ?></button>
-                <?php endforeach; ?>
-            </div>
-            <button class="filter-arrow right">&#8250;</button>
-        </div>
-        <form id="recipe-selection-form">
-            <?php foreach ($recipes as $recipe) : ?>
-                <div class="recipe-item" data-category="<?php echo implode(' ', wp_get_post_categories($recipe->ID, array('fields' => 'ids'))); ?>" data-title="<?php echo strtolower(get_the_title($recipe)); ?>">
-                    <?php $featured_image = get_the_post_thumbnail_url($recipe->ID, 'medium'); ?>
-                    <img src="<?php echo esc_url($featured_image); ?>" alt="<?php echo esc_attr(get_the_title($recipe)); ?>" class="recipe-image" data-recipe-id="<?php echo $recipe->ID; ?>">
-                    <h4 class="recipe-title" data-recipe-id="<?php echo $recipe->ID; ?>"><?php echo get_the_title($recipe); ?></h3>
-                    <button type="button" class="add-recipe-button" data-recipe-id="<?php echo $recipe->ID; ?>">Add to List</button>
+            <div class="filter-buttons-container">
+                <button class="filter-arrow left">&#8249;</button>
+                <div class="filter-buttons">
+                    <button class="filter-button" data-category="all">All</button>
+                    <?php foreach ($tags as $tag) : ?>
+                        <button class="filter-button" data-category="<?php echo esc_attr($tag->term_id); ?>"><?php echo esc_html($tag->name); ?></button>
+                    <?php endforeach; ?>
                 </div>
-            <?php endforeach; ?>
-        </form>
-    </div>
-    <div class="next-button-container">
-        <button type="button" id="next-step" class="next-button">Next</button>
-    </div>
-    <div id="recipe-popup" style="display: none;">
-		<div id="recipe-popup-wrapper">
-			<div id="recipe-popup-content">
-				<span id="recipe-popup-close">&times;</span>
-				<div id="recipe-popup-body"></div>
-			</div>
-		</div>
+                <button class="filter-arrow right">&#8250;</button>
+            </div>
+            <form id="recipe-selection-form">
+                <?php foreach ($recipes as $recipe) : ?>
+                    <div class="recipe-item" data-category="<?php echo esc_attr(implode(' ', wp_get_post_categories($recipe->ID, array('fields' => 'ids')))); ?>" data-title="<?php echo esc_attr(strtolower(get_the_title($recipe))); ?>">
+                        <?php $featured_image = get_the_post_thumbnail_url($recipe->ID, 'medium'); ?>
+                        <img src="<?php echo esc_url($featured_image); ?>" alt="<?php echo esc_attr(get_the_title($recipe)); ?>" class="recipe-image" data-recipe-id="<?php echo esc_attr($recipe->ID); ?>">
+                        <h4 class="recipe-title" data-recipe-id="<?php echo esc_attr($recipe->ID); ?>"><?php echo esc_html(get_the_title($recipe)); ?></h3>
+                        <button type="button" class="add-recipe-button" data-recipe-id="<?php echo esc_attr($recipe->ID); ?>">Add to List</button>
+                    </div>
+                <?php endforeach; ?>
+            </form>
+            <div class="next-button-container">
+                <button type="button" id="next-step" class="next-button">Next</button>
+            </div>
+        </div>
+        <div id="recipe-popup" style="display: none;">
+            <div id="recipe-popup-wrapper">
+                <div id="recipe-popup-content">
+                    <span id="recipe-popup-close">&times;</span>
+                    <div id="recipe-popup-body"></div>
+                </div>
+            </div>
+        </div>
     </div>
     <?php
     return ob_get_clean();
 }
 
 
+
 // Display the selected recipes and ingredients summary
 function wrp_recipe_summary_page() {
     ob_start();
     ?>
-    <div id="recipe-summary">
-        <div id="selected-recipes">
-            <h2>Your Weekly Recipes</h2>
-            <div id="recipes-content"></div>
+    <div class="recipe-summary-page">
+        <div class="search-history-container">
+            <div class="search-history-toggle">Search History</div>
+            <div class="search-history-content">
+                <ul id="search-history-list"></ul>
+            </div>
         </div>
-        <div id="ingredients-summary">
-            <h2>Ingredients Summary</h2>
-            <div id="ingredients-content"></div>
+        <div id="recipe-summary">
+            <div id="selected-recipes">
+                <h2>Your Weekly Recipes</h2>
+                <div id="recipes-content"></div>
+            </div>
+            <div id="ingredients-summary">
+                <h2>Ingredients Summary</h2>
+                <div id="ingredients-content"></div>
+            </div>
         </div>
-    </div>
-    <div class="people-selection">
-        <label for="people-number-summary" class="people-number-label">Number of People:</label>
-        <div class="number-input">
-            <button class="decrement" id="decrease">-</button>
-            <input type="number" id="people-number-summary" name="people-number-summary" value="1" min="1" max="6">
-            <button class="increment" id="increase">+</button>
+        <div class="people-selection">
+            <label for="people-number-summary" class="people-number-label">Number of People:</label>
+            <div class="number-input">
+                <button class="decrement" id="decrease">-</button>
+                <input type="number" id="people-number-summary" name="people-number-summary" value="1" min="1" max="6">
+                <button class="increment" id="increase">+</button>
+            </div>
         </div>
-    </div>
-    <div id="recipe-popup" style="display: none;">
-        <div id="recipe-popup-wrapper">
-			<div id="recipe-popup-content">
-				<span id="recipe-popup-close">&times;</span>
-				<div id="recipe-popup-body"></div>
-			</div>
-		</div>
+        <div id="recipe-popup" style="display: none;">
+            <div id="recipe-popup-wrapper">
+                <div id="recipe-popup-content">
+                    <span id="recipe-popup-close">&times;</span>
+                    <div id="recipe-popup-body"></div>
+                </div>
+            </div>
+        </div>
     </div>
     <?php
     return ob_get_clean();

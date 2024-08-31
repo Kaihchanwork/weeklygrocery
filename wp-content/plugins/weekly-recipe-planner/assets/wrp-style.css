@@ -514,3 +514,55 @@ footer.wp-block-template-part {
 	text-align:center;
 	
 }
+
+.search-history-container {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 200px;
+    background: #f1f1f1;
+    border: 1px solid #ccc;
+    border-radius: 5px 5px 0 0;
+    overflow: hidden;
+    transition: height 0.3s ease-in-out, width 0.3s ease-in-out;
+    height: 40px; /* Height when collapsed */
+}
+
+.search-history-toggle {
+    padding: 10px;
+    background: #0073aa;
+    color: #fff;
+    cursor: pointer;
+    text-align: center;
+}
+
+.search-history-content {
+    display: none;
+    padding: 10px;
+    max-height: 300px; /* Maximum height when expanded */
+    overflow-y: auto;
+}
+
+#search-history-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+#search-history-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 0;
+}
+
+#search-history-list li a {
+    text-decoration: none;
+    color: #0073aa;
+}
+
+#search-history-list li .remove-history-item {
+    color: red;
+    cursor: pointer;
+    margin-left: 10px;
+}

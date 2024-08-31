@@ -1,5 +1,60 @@
 jQuery(document).ready(function($) {
     var wrp_selectedRecipes = [];
+    const searchHistoryKey = 'wrp_search_history';
+
+    function getSearchHistory() {
+        const history = Cookies.get(searchHistoryKey);
+        return history ? JSON.parse(history) : [];
+    }
+
+    function setSearchHistory(history) {
+        Cookies.set(searchHistoryKey, JSON.stringify(history), { expires: 7 });
+    }
+
+    function updateSearchHistoryList() {
+        const history = getSearchHistory();
+        const historyList = $('#search-history-list');
+        historyList.html('');
+
+        history.forEach((entry, index) => {
+            const listItem = $('<li></li>');
+            const link = $('<a></a>').attr('href', '../summary-page-url/?recipe_ids=' + entry.recipeIds.join(',')).text(entry.title);
+            const removeButton = $('<span></span>').text(' x').addClass('remove-history-item').data('index', index);
+            
+            listItem.append(link).append(removeButton);
+            historyList.append(listItem);
+        });
+
+        $('.remove-history-item').on('click', function() {
+            const index = $(this).data('index');
+            removeFromSearchHistory(index);
+        });
+    }
+
+    function addToSearchHistory(title, recipeIds) {
+        let history = getSearchHistory();
+        const newEntry = { title, recipeIds };
+
+        history = history.filter(entry => JSON.stringify(entry.recipeIds) !== JSON.stringify(recipeIds));
+
+        history.unshift(newEntry);
+
+        if (history.length > 10) {
+            history.pop();
+        }
+
+        setSearchHistory(history);
+        updateSearchHistoryList();
+    }
+
+    function removeFromSearchHistory(index) {
+        let history = getSearchHistory();
+        if (index >= 0 && index < history.length) {
+            history.splice(index, 1);
+            setSearchHistory(history);
+            updateSearchHistoryList();
+        }
+    }
 
     function wrp_toggleRecipeSelection(recipeId, button) {
         if (!wrp_selectedRecipes.includes(recipeId)) {
@@ -139,6 +194,10 @@ jQuery(document).ready(function($) {
 
     if ($('#next-step').length) {
         $('#next-step').on('click', function() {
+            const selectedRecipes = wrp_selectedRecipes;
+            const title = selectedRecipes.map(id => $('.recipe-title[data-recipe-id="' + id + '"]').text()).join(' & ');
+
+            addToSearchHistory(title, selectedRecipes);
             wrp_redirectToSummaryPage();
         });
     }
@@ -287,4 +346,20 @@ jQuery(document).ready(function($) {
             scrollFilter('right');
         });
     }
+
+    // Toggle search history visibility
+    $('.search-history-toggle').on('click', function() {
+        if ($('.search-history-content').css('display') === 'none') {
+            $('.search-history-content').slideDown(300);
+            $('.search-history-container').css('height', 'auto');
+            $('.search-history-container').css('width', '600px');
+        } else {
+            $('.search-history-content').slideUp(300);
+            $('.search-history-container').css('height', '40px');
+            $('.search-history-container').css('width', '200px');
+        }
+    });
+
+    // Initialize search history on page load
+    updateSearchHistoryList();
 });

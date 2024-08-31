@@ -58,14 +58,20 @@ function recipe_importer_ajax_handler() {
             wp_send_json_error('Invalid JSON file.');
         }
 
-        process_recipes($recipes);
-        wp_send_json_success('Recipes imported successfully.');
+        foreach ($recipes as $recipe) {
+            $result = process_single_recipe($recipe);
+            echo json_encode(array('message' => $result));
+            ob_flush();
+            flush();
+        }
+
+        wp_die();
     } else {
         wp_send_json_error('Please upload a JSON file.');
     }
 }
 
-function process_recipes($recipes) {
+function process_single_recipe($recipe) {
     // Ensure the main "Recipes" category exists
     $recipes_category = get_term_by('name', 'Recipes', 'category');
     if (!$recipes_category) {
@@ -74,79 +80,79 @@ function process_recipes($recipes) {
         $recipes_category_id = $recipes_category->term_id;
     }
 
-    foreach ($recipes as $recipe) {
-        // Create subcategory for the recipe tag
-        $tag_category = get_term_by('name', sanitize_text_field($recipe['tag']), 'category');
-        if (!$tag_category) {
-            $tag_category_id = wp_create_category(sanitize_text_field($recipe['tag']), $recipes_category_id);
-        } else {
-            $tag_category_id = $tag_category->term_id;
-        }
-
-        // Check if a post with the same title exists using WP_Query
-        $query_args = array(
-            'title' => wp_strip_all_tags($recipe['title']),
-            'post_type' => 'post',
-            'post_status' => 'any',
-            'posts_per_page' => 1
-        );
-        $query = new WP_Query($query_args);
-
-        if ($query->have_posts()) {
-            $query->the_post();
-            $recipe_post_id = get_the_ID();
-            // Update the existing post
-            $recipe_post = array(
-                'ID'            => $recipe_post_id,
-                'post_title'    => wp_strip_all_tags($recipe['title']),
-                'post_category' => array($recipes_category_id, $tag_category_id)
-            );
-            wp_update_post($recipe_post);
-        } else {
-            // Create a new post
-            $recipe_post = array(
-                'post_title'    => wp_strip_all_tags($recipe['title']),
-                'post_content'  => '', // Leaving content empty
-                'post_status'   => 'publish',
-                'post_category' => array($recipes_category_id, $tag_category_id)
-            );
-            $recipe_post_id = wp_insert_post($recipe_post);
-        }
-
-        wp_reset_postdata();
-
-        if (is_wp_error($recipe_post_id)) {
-            continue;
-        }
-
-        // Set the featured image
-        $image_id = upload_image_from_url($recipe['hero_image_url']);
-        if ($image_id) {
-            set_post_thumbnail($recipe_post_id, $image_id);
-        }
-
-        // Add or update custom fields for ingredients
-        foreach ($recipe['ingredients'] as $i => $ingredient) {
-            // Assuming unit and quantity are in the same field separated by a space
-            list($quantity, $unit) = explode(' ', sanitize_text_field($ingredient['unit']), 2);
-            $quantity = floatval($quantity) / 2; // Adjust the quantity for 1 person
-            update_post_meta($recipe_post_id, "ingredient_{$i}_name", sanitize_text_field($ingredient['name']));
-            update_post_meta($recipe_post_id, "ingredient_{$i}_quantity", $quantity);
-            update_post_meta($recipe_post_id, "ingredient_{$i}_unit", sanitize_text_field($unit));
-        }
-
-        // Add or update custom fields for each instruction step
-        foreach ($recipe['instructions'] as $i => $instruction) {
-            $instruction_image_id = upload_image_from_url($instruction['image_url']);
-            if ($instruction_image_id) {
-                $instruction_image_url = wp_get_attachment_url($instruction_image_id);
-                update_post_meta($recipe_post_id, "instruction_{$i}_image", $instruction_image_url);
-            } else {
-                update_post_meta($recipe_post_id, "instruction_{$i}_image", esc_url_raw($instruction['image_url']));
-            }
-            update_post_meta($recipe_post_id, "instruction_{$i}_text", sanitize_text_field($instruction['text']));
-        }
+    // Create subcategory for the recipe tag
+    $tag_category = get_term_by('name', sanitize_text_field($recipe['tag']), 'category');
+    if (!$tag_category) {
+        $tag_category_id = wp_create_category(sanitize_text_field($recipe['tag']), $recipes_category_id);
+    } else {
+        $tag_category_id = $tag_category->term_id;
     }
+
+    // Check if a post with the same title exists using WP_Query
+    $query_args = array(
+        'title' => wp_strip_all_tags($recipe['title']),
+        'post_type' => 'post',
+        'post_status' => 'any',
+        'posts_per_page' => 1
+    );
+    $query = new WP_Query($query_args);
+
+    if ($query->have_posts()) {
+        $query->the_post();
+        $recipe_post_id = get_the_ID();
+        // Update the existing post
+        $recipe_post = array(
+            'ID'            => $recipe_post_id,
+            'post_title'    => wp_strip_all_tags($recipe['title']),
+            'post_category' => array($recipes_category_id, $tag_category_id)
+        );
+        wp_update_post($recipe_post);
+    } else {
+        // Create a new post
+        $recipe_post = array(
+            'post_title'    => wp_strip_all_tags($recipe['title']),
+            'post_content'  => '', // Leaving content empty
+            'post_status'   => 'publish',
+            'post_category' => array($recipes_category_id, $tag_category_id)
+        );
+        $recipe_post_id = wp_insert_post($recipe_post);
+    }
+
+    wp_reset_postdata();
+
+    if (is_wp_error($recipe_post_id)) {
+        return 'Failed to import: ' . $recipe['title'];
+    }
+
+    // Set the featured image
+    $image_id = upload_image_from_url($recipe['hero_image_url']);
+    if ($image_id) {
+        set_post_thumbnail($recipe_post_id, $image_id);
+    }
+
+    // Add or update custom fields for ingredients
+    foreach ($recipe['ingredients'] as $i => $ingredient) {
+        // Assuming unit and quantity are in the same field separated by a space
+        list($quantity, $unit) = explode(' ', sanitize_text_field($ingredient['unit']), 2);
+        $quantity = floatval($quantity) / 2; // Adjust the quantity for 1 person
+        update_post_meta($recipe_post_id, "ingredient_{$i}_name", sanitize_text_field($ingredient['name']));
+        update_post_meta($recipe_post_id, "ingredient_{$i}_quantity", $quantity);
+        update_post_meta($recipe_post_id, "ingredient_{$i}_unit", sanitize_text_field($unit));
+    }
+
+    // Add or update custom fields for each instruction step
+    foreach ($recipe['instructions'] as $i => $instruction) {
+        $instruction_image_id = upload_image_from_url($instruction['image_url']);
+        if ($instruction_image_id) {
+            $instruction_image_url = wp_get_attachment_url($instruction_image_id);
+            update_post_meta($recipe_post_id, "instruction_{$i}_image", $instruction_image_url);
+        } else {
+            update_post_meta($recipe_post_id, "instruction_{$i}_image", esc_url_raw($instruction['image_url']));
+        }
+        update_post_meta($recipe_post_id, "instruction_{$i}_text", sanitize_text_field($instruction['text']));
+    }
+
+    return 'Imported: ' . $recipe['title'];
 }
 
 // Function to upload an image from a URL and return the attachment ID
